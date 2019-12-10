@@ -5,6 +5,7 @@
 #ifndef KYHTTPSERVER_LOGGER_H
 #define KYHTTPSERVER_LOGGER_H
 class Logger{
+public:
     static void INFO(const char* format_, ...);
     static void ERROR(const char* format_, ...);
 };

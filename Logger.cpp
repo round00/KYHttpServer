@@ -4,11 +4,17 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include "Logger.h"
-
+#define MAX_LEN 1024
 void Logger::INFO(const char *format_, ...) {
-
+    va_list ap;
+    va_start(ap,format_);
+    vfprintf(stdout, format_,ap);
+    va_end(ap);
 }
 
 void Logger::ERROR(const char *format_, ...) {
-
+    va_list ap;
+    va_start(ap,format_);
+    vfprintf(stderr, format_,ap);
+    va_end(ap);
 }
