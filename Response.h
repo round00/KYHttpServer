@@ -1,0 +1,8 @@
+//
+// Created by gjk on 12/10/19.
+//
+
+#ifndef KYHTTPSERVER_RESPONSE_H
+#define KYHTTPSERVER_RESPONSE_H
+
+#endif //KYHTTPSERVER_RESPONSE_H
