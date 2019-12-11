@@ -14,3 +14,23 @@ std::string addr2str(const struct sockaddr_in& addr){
     s += std::to_string(port);
     return s;
 }
+
+std::vector<std::string> spiltstring(const std::string& str, char c){
+    std::vector<std::string> vecStr;
+    int beginPos = 0;
+    for(int i = 0; i<str.size(); ++i){
+        if(str[i] == c){
+            vecStr.push_back(str.substr(beginPos, i - beginPos));
+            beginPos = i+1;
+        }
+    }
+    if(beginPos == 0){
+        vecStr.push_back(str);
+    }
+    return vecStr;
+}
+
+//
+std::vector<std::string> spiltstring(const std::string& str, const std::string& chr){
+
+}

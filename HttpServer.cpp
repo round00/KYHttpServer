@@ -63,7 +63,7 @@ void CHttpServer::start() {
         std::string response;
         handle_httpdata(buf, response);
         writeData(clientsockfd, response);
-        ::close(clientsockfd);
+//        ::close(clientsockfd);
     }
 }
 
@@ -79,14 +79,15 @@ void CHttpServer::unregisterController(std::string & uriName) {
 }
 
 int CHttpServer::readData(int sockfd, std::string &buf) {
-    char buffer[MAX_BUF_LEN];
-    int n = ::read(sockfd, buffer, sizeof buffer);
-    if(n<0){
-        Logger::ERROR("read data from socket failed, err=%s\n", strerror(errno));
-        return n;
+    char buffer[MAX_BUF_LEN] = {0};
+    int n, all = 0;
+    while((n = ::read(sockfd, buffer, MAX_BUF_LEN)) == MAX_BUF_LEN){
+        buf += buffer;
+        all += n;
+        memset(buffer, 0, sizeof buffer);
     }
-    buf = buffer;
-    return n;
+    all+=n;
+    return all;
 }
 
 int CHttpServer::writeData(int sockfd, const std::string &buf) {
@@ -99,6 +100,7 @@ int CHttpServer::writeData(int sockfd, const std::string &buf) {
 }
 
 void CHttpServer::handle_httpdata(const std::string &data, std::string &response) {
+    Logger::INFO(data.c_str());
     Request request(data);
     if(!request.parse()){
         //bad request;
@@ -110,7 +112,7 @@ void CHttpServer::handle_httpdata(const std::string &data, std::string &response
         //404
     }
 
-    HttpCallback cb = it->second;
-    Response res = cb(request);
-    response = res.toString();
+//    HttpCallback cb = it->second;
+//    Response res = cb(request);
+//    response = res.toString();
 }

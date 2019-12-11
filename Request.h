@@ -7,7 +7,7 @@
 
 #include <string>
 #include <unordered_map>
-
+#include "HttpState.h"
 class Request{
 public:
     Request(const std::string& data):m_rawData(data){}
@@ -16,6 +16,9 @@ public:
     std::string getValue(std::string& key);
 private:
     std::string m_rawData;
+
+    HTTP_REQUEST_METHOD m_requestMethod;
+    HTTP_VERSION m_httpVersion;
     std::string m_uri;
     std::unordered_map<std::string, std::string> m_headers;
 };
