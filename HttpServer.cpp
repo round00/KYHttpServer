@@ -26,6 +26,10 @@ void CHttpServer::start() {
         Logger::ERROR("create socket failed, err=%s\n", strerror(errno));
         return;
     }
+
+    int optval = 1;
+    ::setsockopt(serverfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof optval);
+
     //bind socket
     struct sockaddr_in addr;
     addr.sin_family = AF_INET;
@@ -67,7 +71,7 @@ void CHttpServer::start() {
     }
 }
 
-void CHttpServer::registerController(std::string & uriName, const CHttpServer::HttpCallback & cb) {
+void CHttpServer::registerController(const std::string & uriName, const CHttpServer::HttpCallback & cb) {
     m_controller.insert(make_pair(uriName, cb));
 }
 
@@ -87,6 +91,7 @@ int CHttpServer::readData(int sockfd, std::string &buf) {
         memset(buffer, 0, sizeof buffer);
     }
     all+=n;
+    buf += buffer;
     return all;
 }
 
@@ -103,16 +108,20 @@ void CHttpServer::handle_httpdata(const std::string &data, std::string &response
     Logger::INFO(data.c_str());
     Request request(data);
     if(!request.parse()){
-        //bad request;
+        Response res(request.getHttpVersion(), 400, "Bad Request!");
+        response = res.toString();
+        return;
     }
 
     std::string uri = request.getUri();
     auto it = m_controller.find(uri);
     if(it==m_controller.end()){
-        //404
+        Response res(request.getHttpVersion(), 404, "404 Not found!");
+        response = res.toString();
+        return;
     }
 
-//    HttpCallback cb = it->second;
-//    Response res = cb(request);
-//    response = res.toString();
+    const HttpCallback& cb = it->second;
+    Response res = cb(request);
+    response = res.toString();
 }

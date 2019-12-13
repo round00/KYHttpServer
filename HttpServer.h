@@ -19,7 +19,7 @@ public:
     CHttpServer(int port);
     void start();
 
-    void registerController(std::string& uriName, const HttpCallback& cb);
+    void registerController(const std::string& uriName, const HttpCallback& cb);
     void unregisterController(std::string& uriName);
 private:
 
@@ -28,6 +28,6 @@ private:
     void handle_httpdata(const std::string& data, std::string& response);
     int m_port;
     bool m_bRunning;
-    std::unordered_map<std::string, const HttpCallback&> m_controller;
+    std::unordered_map<std::string, HttpCallback> m_controller;
 };
 #endif //KYHTTPSERVER_HTTPSERVER_H

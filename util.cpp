@@ -24,13 +24,25 @@ std::vector<std::string> spiltstring(const std::string& str, char c){
             beginPos = i+1;
         }
     }
-    if(beginPos == 0){
-        vecStr.push_back(str);
-    }
+    vecStr.push_back(str.substr(beginPos, str.length()-beginPos));
     return vecStr;
 }
 
 //
 std::vector<std::string> spiltstring(const std::string& str, const std::string& chr){
+    std::vector<std::string> vecStr;
+    if(str.empty() ||chr.empty()){
+        return vecStr;
+    }
 
+    int beginPos = 0, chrlen = chr.length();
+    while(true){
+        int pos = str.find(chr, beginPos);
+        if(pos == -1)break;
+        vecStr.push_back(str.substr(beginPos, pos-beginPos));
+        beginPos = pos + chrlen;
+    }
+    vecStr.push_back(str.substr(beginPos, str.length()-beginPos));
+
+    return vecStr;
 }

@@ -8,6 +8,7 @@ set(LIBSRC
         Request.cpp
         Response.cpp
         util.cpp
+        HttpState.cpp
 )
 
 add_executable(main main.cpp ${LIBSRC})
