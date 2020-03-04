@@ -24,8 +24,11 @@ public:
     void            loop();
     void            addController(const string& uri, const Controller& controller);
     void            delController(const string& uri);
-    void            setDefaultController(const Controller& controller);
+    Controller      getController(const string& uri);
 
+    void            setDefaultController(const Controller& controller)
+    {m_defaultController = controller;}
+    Controller      getDefaultController(){ return m_defaultController;}
 private:
     void            onNewConnection(const TcpConnPtr& conn);
 
@@ -40,6 +43,8 @@ private:
                     m_controllers;
     //默认的请求回调，即在m_controllers中找不到对应的uri时，就调用这个
     Controller      m_defaultController;
+    //当前的http连接，以对方的fd唯一标识，
+    //忽略Pipelining，HTTP/1.1中一个tcp连接同时只能有一个HTTP连接
     std::unordered_map<int, HttpConnPtr>
                     m_httpConnections;
     TcpServerPtr    m_tcpServer;

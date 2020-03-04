@@ -5,7 +5,7 @@
 #include "HttpResponse.h"
 
 CHttpResponse::CHttpResponse()
-:m_responseCode(200)
+:m_responseCode(0)
 {
 
 }

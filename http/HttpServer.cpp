@@ -40,14 +40,18 @@ void CHttpServer::delController(const string& uri) {
     m_controllers.erase(it);
 }
 
-void CHttpServer::setDefaultController(const Controller &controller) {
-    m_defaultController = controller;
+Controller CHttpServer::getController(const string &uri) {
+    auto it = m_controllers.find(uri);
+    if(it == m_controllers.end())
+        return nullptr;
+    return it->second;
 }
+
 
 void CHttpServer::onNewConnection(const TcpConnPtr &conn) {
     HttpConnPtr httpConn(new CHttpConnection());
+    httpConn->setConnState(CONN_CONNECTED);
     m_httpConnections[conn->getFd()] = httpConn;
     conn->setReadCallback(std::bind(&CHttpConnection::onNewRequest,
-            httpConn.get(), std::placeholders::_1));
-
+            httpConn.get(), std::placeholders::_1, std::placeholders::_2));
 }

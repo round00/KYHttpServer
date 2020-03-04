@@ -13,6 +13,11 @@
 class CHttpRequest : public CHttpMessage{
 public:
     CHttpRequest();
+    void                setUri(const string& uri){m_uri = uri;}
+    string              getUri(){return m_uri;}
+
+    void                setMethod(REQUEST_METHOD method){m_method = method;}
+    REQUEST_METHOD      getMethod(){return m_method;}
 
 private:
     string              m_uri;

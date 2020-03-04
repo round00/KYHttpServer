@@ -3,11 +3,42 @@
 //
 
 #include <vector>
-#include <string>
 #include "HttpStates.h"
+#include "util.h"
+
+REQUEST_METHOD getMethodByStr(const std::string& str){
+    if(equalNocase(str, "GET")){
+        return REQUEST_METHOD_GET;
+    }else if(equalNocase(str, "POST")){
+        return REQUEST_METHOD_POST;
+    }else if(equalNocase(str, "HEAD")){
+        return REQUEST_METHOD_HEAD;
+    }else if(equalNocase(str, "PUT")){
+        return REQUEST_METHOD_PUT;
+    }else if(equalNocase(str, "DELETE")){
+        return REQUEST_METHOD_DELETE;
+    }else if(equalNocase(str, "OPTIONS")){
+        return REQUEST_METHOD_OPTIONS;
+    }else if(equalNocase(str, "TRACE")){
+        return REQUEST_METHOD_TRACE;
+    }else if(equalNocase(str, "CONNECT")){
+        return REQUEST_METHOD_CONNECT;
+    }
+    return REQUEST_METHOD_UNKNOWN;
+}
+
+bool shouldHaveBody(REQUEST_METHOD method){
+    switch (method){
+        case REQUEST_METHOD_POST:
+        case REQUEST_METHOD_PUT:
+            return true;
+        default:
+            return false;
+    }
+}
 
 //这些状态码都是从libevent拿过来的
-static const std::vector<std::vector<const char*>> PHRASES = {
+const std::vector<std::vector<const char*>> PHRASES = {
         {},{
                 /* 100 */ "Continue",
                 /* 101 */ "Switching Protocols"
