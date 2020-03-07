@@ -17,10 +17,10 @@ std::string trim(const std::string& s){
 	return s.substr(b, e-b+1);
 }
 
-std::vector<std::string> split(const std::string& s, char sep){
+std::vector<std::string> spilt(const std::string& s, char sep){
     std::vector<std::string> strs;
-    int last = 0, i = 0;
-    while(i<s.length()){
+    int last = 0, i = 0, len = s.length();
+    while(i<len){
         if(s[i]==sep){
             if(last < i)
                 strs.push_back(s.substr(last, i-last));
@@ -36,7 +36,8 @@ std::vector<std::string> split(const std::string& s, char sep){
 
 bool equalNocase(const std::string& s1, const std::string& s2){
     if(s1.length()!=s2.length())return false;
-    for(int i = 0; i<s1.length(); ++i){
+    int len = s1.length();
+    for(int i = 0; i<len; ++i){
         char c1 = s1[i], c2 = s2[i];
         if(c1>='a' && c1<='z')c1 = c1-'a'+'A';
         if(c2>='a' && c2<='z')c2 = c2-'a'+'A';

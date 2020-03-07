@@ -13,14 +13,21 @@
 class CHttpRequest : public CHttpMessage{
 public:
     CHttpRequest();
-    void                setUri(const string& uri){m_uri = uri;}
+//    void                setUri(const string& uri){m_uri = uri;}
+    //解析uri，默认uri格式是：/hello/?name=gjk&pass=123#fragment
+    void                parseUri(const string& uri);
     string              getUri(){return m_uri;}
+
+    string              getFragment(){return m_fragment;}
 
     void                setMethod(REQUEST_METHOD method){m_method = method;}
     REQUEST_METHOD      getMethod(){return m_method;}
 
 private:
+
+
     string              m_uri;
+    string              m_fragment;
     REQUEST_METHOD      m_method;
 
 };

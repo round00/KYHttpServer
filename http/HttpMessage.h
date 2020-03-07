@@ -9,6 +9,7 @@
 #include <string>
 #include <unordered_map>
 #include <stdint.h>
+#include <vector>
 #include "HttpStates.h"
 using std::string;
 
@@ -23,6 +24,8 @@ public:
     void                addHeader(const string& key, const string& val);
     string              getHeader(const string& key);
     void                delHeader(const string& key);
+    std::vector<std::pair<string,string>>
+                        getAllHeaders();
 
     void                setBody(const string& body){m_body = body;}
     string              getBody(){return m_body;}

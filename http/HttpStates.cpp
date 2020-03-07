@@ -94,7 +94,8 @@ const char* responsePhraseByCode(uint16_t code){
     }
     int i = code/100;     //1、2、3、4、5
     int j = code%100;
-    if(j >= PHRASES[i].size()){
+    int nsize = PHRASES[i].size();
+    if(j >= nsize){
         return "Unknown Response Code";
     }
     return PHRASES[i][j];

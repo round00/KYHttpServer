@@ -6,7 +6,7 @@
 
 std::string trim(const std::string& s);
 //分割字符串
-std::vector<std::string> split(const std::string& s, char sep=' ');
+std::vector<std::string> spilt(const std::string& s, char sep=' ');
 //比较字符串，无视大小写
 bool equalNocase(const std::string& s1, const std::string& s2);
 

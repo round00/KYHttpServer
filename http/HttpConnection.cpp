@@ -5,9 +5,10 @@
 #include "HttpConnection.h"
 #include "Logger.h"
 #include "util.h"
+#include "HttpServer.h"
 
-CHttpConnection::CHttpConnection()
-:m_request(nullptr), m_response(nullptr),
+CHttpConnection::CHttpConnection(CHttpServer* httpServer)
+:m_httpServer(httpServer), m_request(nullptr), m_response(nullptr),
 m_connState(CONN_DISCONNECTED){
 
 }
@@ -15,10 +16,9 @@ m_connState(CONN_DISCONNECTED){
 void CHttpConnection::onNewRequest(TcpConnPtr tcpConn, BufferPtr buffer) {
     if(m_connState == CONN_DISCONNECTED || m_connState == CONN_WRITING)
         return;
-    if(m_connState == CONN_CONNECTED){  //第一次连接
+    if(m_connState == CONN_CONNECTED){  //第一次收到数据
         //关闭tcp连接的写
         tcpConn->enableWrite(false);
-        m_tcpConn = tcpConn;
         //创建一个http请求，等会填充
         m_request.reset(new CHttpRequest());
         m_connState = CONN_READ_FIRSTLINE;
@@ -43,21 +43,12 @@ void CHttpConnection::onNewRequest(TcpConnPtr tcpConn, BufferPtr buffer) {
 }
 
 void CHttpConnection::onResponseDone(TcpConnPtr tcpConn) {
-    //到这里这个请求就算是处理完了
-
-    bool needClose = false;
-    string Connection = m_request->getHeader("Connection");
-    if(m_request->getHttpVersion()==10 &&//HTTP/1.0
-        !equalNocase(Connection, "Keep-Alive")){    //没有Keep-Alive
-        needClose = true;
-    }else if(m_request->getHttpVersion()==11 && //HTTP/1.1
-            equalNocase(Connection, "close")){
-        needClose = true;
-    }
+    //到这里这个请求就算是处理完了，如果不需要关闭就坐等下一次请求到来就好了
+    bool needClose = connNeedClose();
 
     resetHttpConnection();
     if(needClose)
-        tcpConn->close();
+        tcpConn->closeConnection();
 }
 
 void CHttpConnection::readFirstLine(BufferPtr buffer) {
@@ -74,13 +65,13 @@ void CHttpConnection::readFirstLine(BufferPtr buffer) {
         requestFailed(REQUEST_FAILED_FIRSTLINE);
         return;
     }
-    auto items = split(line);
+    auto items = spilt(line);
     if(items.size() != 3){//HTTP请求的第一行要有三个参数
         requestFailed(REQUEST_FAILED_FIRSTLINE);
         return;
     }
     m_request->setMethod(getMethodByStr(items[0]));
-    m_request->setUri(items[1]);
+    m_request->parseUri(items[1]);
     //读取http的版本号
     int major = 1, minor = 1;
     if(sscanf(items[2].c_str(), "HTTP/%d.%d", &major, &minor)!=2
@@ -101,15 +92,14 @@ void CHttpConnection::readHeaders(BufferPtr buffer) {
     std::string header;
     int nRead = 0;
     while((nRead = buffer->readALine(header)) > 0){
-        auto items = split(header, ':');
         //报文头的每一行应该是用:分开的键值对
-        if(items.size()!=2){
-            requestFailed(REQUEST_FAILED_HEADER);
-            return;
+        auto pos = header.find(':');
+        if(pos == string::npos){
+            continue;
         }
-        string key = items[0];
-        string val = items[1];
-        m_request->addHeader(key, val);
+        string key = header.substr(0, pos);
+        string val = header.substr(pos+1);
+        m_request->addHeader(trim(key), trim(val));
     }
 
     if(nRead < 0){
@@ -184,7 +174,7 @@ void CHttpConnection::readBodyByLength(BufferPtr buffer) {
     }
 
     //使用Content-Length字段指定了长度
-    if(buffer->readAbleLength() < nBody){
+    if(buffer->readableLength() < nBody){
         //数据还不够，再等等
         return;
     }
@@ -231,7 +221,7 @@ Hello world\r\n
             m_request->setBodyChunkSize(chunkSzie);
         }else{  //该读分块了
             chunkSzie+=2;   //+2是指\r\n的长度
-            if(buffer->readAbleLength() < chunkSzie){
+            if(buffer->readableLength() < chunkSzie){
                 //数据不够
                 return;
             }
@@ -253,9 +243,15 @@ Hello world\r\n
     requestSucess();
 }
 
-//void CHttpConnection::requestFailed(REQUEST_FAILED reason) {
-//
-//}
+void CHttpConnection::requestFailed(REQUEST_FAILED reason) {
+    if(reason == REQUEST_FAILED_FIRSTLINE ||
+        reason == REQUEST_FAILED_HEADER ||
+        reason == REQUEST_FAILED_BODY){
+        responseClientError(400, "Bad Request");
+    }else {
+        responseClientError(500, "Internal Server Error");
+    }
+}
 
 void CHttpConnection::requestSucess() {
     m_connState = CONN_READ_DONE;
@@ -268,31 +264,41 @@ void CHttpConnection::requestSucess() {
     //不在接收数据了
     tcpConn->enableRead(false);
     //分发请求
-    requestDispath();
-    //请求分发完，现在应该将响应发送给客户端了
-    responseClient();
+    if(requestDispath()){
+        //请求分发完，现在应该将响应发送给客户端了
+        responseClient();
+    }
 }
 
-void CHttpConnection::requestDispath() {
+bool CHttpConnection::requestDispath() {
     auto controller = getController(m_request->getUri());
     m_response.reset(new CHttpResponse());
-    if(controller){    //没有任何合适的回调
-        m_response->setResponseLine(404, "Not Found");
-        return;
+    if(!m_httpServer){
+        requestFailed(REQUEST_FAILED_INTERNAL);
+        return false;
+    }
+    if(!(m_httpServer->getAllowMethod() & m_request->getMethod())){
+        responseClientError(501, "Not Implemented");
+        return false;
+    }
+
+    if(!controller){    //没有任何合适的回调
+        responseClientError(404, "Not Found");
+        return false;
     }
 
     controller(m_request, m_response);
+    return true;
 }
 
 Controller CHttpConnection::getController(const string &uri) {
-    auto server = m_httpServer.lock();
-    if(!server){
+    if(!m_httpServer){
         return nullptr;
     }
-    auto cc = server->getController(uri);
+    auto cc = m_httpServer->getController(uri);
     if(cc)
         return cc;
-    cc = server->getDefaultController();
+    cc = m_httpServer->getDefaultController();
     return cc;
 }
 
@@ -314,8 +320,112 @@ void CHttpConnection::responseClient() {
 
 }
 
+static const char* ERR_FORMAT =
+    "<HTML>"
+        "<HEAD>\n"
+	        "<TITLE>%d %s</TITLE>\n"
+	    "</HEAD>"
+        "<BODY>\n"
+	        "<H1>%s</H1>\n"
+	    "</BODY>"
+        "<hr><em>KYHttpServer</em>"
+     "</HTML>\n";
+void CHttpConnection::responseClientError(int code, const string &reason) {
+    if(!m_response)
+        m_response.reset(new CHttpResponse());
+
+    m_response->setResponseLine(code, reason);
+    m_response->addHeader("Content-Type", "text/html");
+    m_response->addHeader("Connection", "close");
+
+    char buf[256];
+    snprintf(buf, 256, ERR_FORMAT, code, reason.c_str(), reason.c_str());
+    m_response->setBody(buf);
+    responseClient();
+}
+
+string CHttpConnection::makeResponsePacket() {
+    if(!m_response)return "";
+    string packet;
+    char buf[MAX_HEADER_LEN];
+    //响应行
+    uint16_t code = m_response->getResponseCode();
+    string reason = m_response->getResponseReason();
+    //没有设置响应码，
+    if(code==0)code = 200;
+    //没有设置原因短语
+    if(reason.empty())reason = responsePhraseByCode(code);
+
+    int major, minor;
+    major = m_response->getHttpVersion();
+    minor = major%10;
+    major /= 10;
+    snprintf(buf, MAX_HEADER_LEN, "HTTP/%d.%d %d %s\r\n", major, minor, code, reason.c_str());
+    packet += buf;
+
+    //响应头
+    //先把用户设置的所有头加进去
+    auto headers = m_response->getAllHeaders();
+    for(const auto& header:headers){
+        header2Str(packet, header.first, header.second);
+    }
+
+    //再加一些用户没有设置的头
+    if(m_response->getHeader("Host").empty()){
+        header2Str(packet, "Host", "KYHttpServer");
+    }
+    //看下是否需要加Connection字段
+    if(m_response->getHeader("Connection").empty()){
+        if(!connNeedClose()){
+            if(m_request->getHttpVersion()==10)
+                header2Str(packet, "Connection", "keep-alive");
+        }else{
+            if(m_request->getHttpVersion()==11)
+                header2Str(packet, "Connection", "close");
+        }
+    }else {//响应设置了是否close，把它也写到请求中，因为之后要根据请求中的字段来判断是否要关闭连接
+        m_request->addHeader("Connection", "close");
+    }
+    string body = m_response->getBody();
+    if(m_response->getHeader("Content-Length").empty())
+        header2Str(packet, "Content-Length", std::to_string(body.size()));
+
+    //头部添加完了，加一个CRLF
+    packet += "\r\n";
+    //添加主体
+    packet += body;
+    return packet;
+}
+
 void CHttpConnection::resetHttpConnection() {
     m_request.reset();
     m_response.reset();
-    m_connState = CONN_DISCONNECTED;
+    m_connState = CONN_CONNECTED;
+    auto tcpConn = m_tcpConn.lock();
+    if(tcpConn){
+        tcpConn->getInputBuffer()->drainAll();
+        tcpConn->getOutputBuffer()->drainAll();
+        tcpConn->enableWrite(false);
+        tcpConn->enableRead(true);
+    }
+}
+
+void CHttpConnection::header2Str(string &str, const string &key, const string &val) {
+    str += key;
+    str += ": ";
+    str += val;
+    str += "\r\n";
+}
+
+bool CHttpConnection::connNeedClose() {
+    if(!m_request)return false;
+    string Connection = m_request->getHeader("Connection");
+    if(m_request->getHttpVersion()==10 &&//HTTP/1.0
+       !equalNocase(Connection, "Keep-Alive")){    //没有Keep-Alive
+        return true;
+    }else if(m_request->getHttpVersion()==11 && //HTTP/1.1
+             equalNocase(Connection, "close")){
+        return true;
+    }
+    return false;
 }

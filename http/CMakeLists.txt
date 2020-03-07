@@ -8,4 +8,4 @@ set(http_src
         )
 
 add_library(http ${http_src})
-#target_link_libraries(base pthread)
+target_link_libraries(http tcp base)

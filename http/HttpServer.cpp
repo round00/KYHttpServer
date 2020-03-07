@@ -9,23 +9,25 @@
 #include <unistd.h>
 #include "HttpServer.h"
 
-
-CHttpServer::CHttpServer()
-:m_listenHost("0.0.0.0"), m_listenPort(9876),m_threadCount(2),
-m_tcpServer(new CTcpServer())
+CHttpServer::CHttpServer(int port, int threadCount):
+m_tcpServer(new CTcpServer(port, threadCount)),
+m_allowMethod(DEFAULT_METHOD)
 {
-
 }
 
 bool CHttpServer::init() {
-    m_tcpServer->init();
+    if(!m_tcpServer->init()){
+        return false;
+    }
     m_tcpServer->setConnectionCb(std::bind(
             &CHttpServer::onNewConnection, this, std::placeholders::_1));
+    m_tcpServer->setDisConnectCb(std::bind(
+            &CHttpServer::onDisConnected, this, std::placeholders::_1));
     return true;
 }
 
 void CHttpServer::loop() {
-
+    m_tcpServer->loop();
 }
 
 void CHttpServer::addController(const string &uri, const Controller &controller) {
@@ -49,9 +51,19 @@ Controller CHttpServer::getController(const string &uri) {
 
 
 void CHttpServer::onNewConnection(const TcpConnPtr &conn) {
-    HttpConnPtr httpConn(new CHttpConnection());
+    HttpConnPtr httpConn(new CHttpConnection(this));
     httpConn->setConnState(CONN_CONNECTED);
-    m_httpConnections[conn->getFd()] = httpConn;
+    httpConn->setTcpConn(conn);
     conn->setReadCallback(std::bind(&CHttpConnection::onNewRequest,
             httpConn.get(), std::placeholders::_1, std::placeholders::_2));
+
+    CMutexLock lock(m_connsMutex);
+    m_httpConnections[conn->getFd()] = httpConn;
+}
+
+void CHttpServer::onDisConnected(const TcpConnPtr &conn) {
+    CMutexLock lock(m_connsMutex);
+    auto it = m_httpConnections.find(conn->getFd());
+    if(it != m_httpConnections.end())
+        m_httpConnections.erase(it);
 }

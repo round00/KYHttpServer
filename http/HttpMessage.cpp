@@ -32,3 +32,12 @@ void CHttpMessage::delHeader(const string &key) {
         m_headers.erase(p);
     }
 }
+
+std::vector<std::pair<string,string>> CHttpMessage::getAllHeaders() {
+    std::vector<std::pair<string,string>> headers;
+    for(auto p:m_headers){
+        headers.emplace_back(p);
+    }
+    return headers;
+}
+

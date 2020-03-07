@@ -8,6 +8,8 @@
 #include <stdint.h>
 #include <string>
 
+const int MAX_HEADER_LEN = 4096;
+
 //http请求方法
 //用位运算可以方便的设置和获取支持的http方法
 enum REQUEST_METHOD{
@@ -21,6 +23,9 @@ enum REQUEST_METHOD{
     REQUEST_METHOD_TRACE   = 1u << 6u,
     REQUEST_METHOD_CONNECT = 1u << 7u,
 };
+//默认支持下面这些方法
+const uint16_t DEFAULT_METHOD = REQUEST_METHOD_GET|REQUEST_METHOD_POST|
+        REQUEST_METHOD_HEAD|REQUEST_METHOD_PUT|REQUEST_METHOD_DELETE;
 REQUEST_METHOD getMethodByStr(const std::string& str);
 //根据方法判断是否需要有一个主体
 bool shouldHaveBody(REQUEST_METHOD method);
