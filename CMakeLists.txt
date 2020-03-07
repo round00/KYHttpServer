@@ -16,5 +16,5 @@ add_subdirectory(base)
 add_subdirectory(tcp)
 add_subdirectory(http)
 
-add_executable(main main.cpp http/HttpStates.cpp)
-target_link_libraries(main base tcp http)
+add_executable(KYHttpServer main.cpp http/HttpStates.cpp)
+target_link_libraries(KYHttpServer base tcp http)

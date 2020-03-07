@@ -8,23 +8,16 @@
 #include "HttpServer.h"
 #include "Logger.h"
 using namespace std;
-
+char page[1024];
+string spage;
 const char* basedir = "/tmp/httpserver";
 void defaultController(const HttpRequestPtr& request, HttpResponsePtr response){
-    char filename[256];
-    strcpy(filename, basedir);
-    strcat(filename, "/index.html");
-    FILE*pfile = fopen(filename, "rb");
-    char buf[65536];
-    auto nread = fread(buf, 1, 65536, pfile);
-    if(nread > 0){
-        string s(buf, nread);
-        response->setBody(s);
-        response->addHeader("Content-type", "text/html");
-//        response->addHeader("Content-Length", to_string(s.length()));
-        response->setResponseLine(200, "OK");
-    }
-    fclose(pfile);
+
+
+    response->setBody(spage);
+    response->addHeader("Content-type", "text/plain");
+    response->addHeader("Content-Length", to_string(spage.length()));
+    response->setResponseLine(200, "OK");
 }
 
 void helloController(const HttpRequestPtr& request, HttpResponsePtr response){
@@ -46,10 +39,13 @@ void helloController(const HttpRequestPtr& request, HttpResponsePtr response){
 
 int main(){
 
-    if(!CLogger::init("logs/")){
-        fprintf(stderr, "Logger init failed\n");
-        return 0;
-    }
+    char filename[256];
+    strcpy(filename, basedir);
+    strcat(filename, "/hello.html");
+    FILE*pfile = fopen(filename, "rb");
+    fread(page, 1, sizeof(page), pfile);
+    fclose(pfile);
+    spage = page;
 
     CHttpServer server(9876, 1);
     server.addController("/hello", helloController);

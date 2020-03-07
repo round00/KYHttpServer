@@ -11,6 +11,7 @@
 #include "Event.h"
 #include "Logger.h"
 #include "TcpServer.h"
+#include "SocketUtil.h"
 
 CEventLoop::CEventLoop(CTcpServer* serverPtr):
 m_tcpServer(serverPtr), m_bRunning(false),m_recvTaskEvent(nullptr){
@@ -19,19 +20,23 @@ m_tcpServer(serverPtr), m_bRunning(false),m_recvTaskEvent(nullptr){
 
 CEventLoop::~CEventLoop() {
     if(m_recvTaskEvent){
+        ::close(m_sendTaskFd);
         ::close(m_recvTaskEvent->getFd());
         delete m_recvTaskEvent;
     }
 }
 
 bool CEventLoop::start() {
-    int notifyfd = ::eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
-    if(notifyfd < 0){
-        LOGE("Create eventfd failed");
+    int pipefd[2];
+    if(::pipe(pipefd) < 0){
+        LOGE("Create pipe fd failed");
         return false;
     }
-
-    m_recvTaskEvent = new CEvent(notifyfd, EV_TYPE_READ);
+    //1是写端
+    m_sendTaskFd = pipefd[1];
+    //0是读端,设置为非阻塞
+    SocketUtil::setNonblock(pipefd[0]);
+    m_recvTaskEvent = new CEvent(pipefd[0], EV_TYPE_READ);
     m_recvTaskEvent->setReadCallback(std::bind(
             &CEventLoop::onNewConnection, this, std::placeholders::_1));
     addEvent(m_recvTaskEvent);
@@ -41,7 +46,7 @@ bool CEventLoop::start() {
 
 void CEventLoop::quit() {
     int quitFd = -1;
-    ::write(m_recvTaskEvent->getFd(), &quitFd, sizeof(quitFd));
+    ::write(m_sendTaskFd, &quitFd, sizeof(quitFd));
 }
 
 void CEventLoop::loop() {
@@ -73,8 +78,8 @@ void CEventLoop::dispatchEvent(CEvent *event) {
 }
 
 bool CEventLoop::addNewClient(int fd) {
-    uint64_t cfd = fd;
-    if(::write(m_recvTaskEvent->getFd(), &cfd, sizeof(cfd)) < 0){
+    LOGI("Eventloop %d, Accept connection fd=%d", m_sendTaskFd, fd);
+    if(::write(m_sendTaskFd, &fd, sizeof(fd)) < 0){
         std::string err = strerror(errno);
         LOGE("addNewConnection failed");
         return false;
@@ -95,7 +100,7 @@ bool CEventLoop::delEvent(CEvent *event) {
 }
 
 void CEventLoop::onNewConnection(CEvent *event) {
-    uint64_t clientfd;
+    int clientfd;
     ::read(event->getFd(), &clientfd, sizeof clientfd);
     if(clientfd==-1){
         //-1表示退出
@@ -112,6 +117,7 @@ void CEventLoop::onNewConnection(CEvent *event) {
     if(m_tcpServer->getConnectionCb()){
         m_tcpServer->getConnectionCb()(conn);
     }
+    LOGI("EventLoop %d create new tcp connection, fd=%d",event->getFd(), clientfd);
 }
 
 void CEventLoop::onRemoveConnection(const TcpConnPtr &conn) {
@@ -119,8 +125,11 @@ void CEventLoop::onRemoveConnection(const TcpConnPtr &conn) {
     if(m_tcpServer->getDisConnectionCb()){
         m_tcpServer->getDisConnectionCb()(conn);
     }
+
+    LOGI("Connection fd=%d remove", conn->getFd());
     //删掉保存的conn对象，使得conn能够析构
     m_connections.erase(conn->getFd());
+
 }
 
 void CEventLoop::threadFuncion() {

@@ -44,7 +44,8 @@ int CEpoller::poll(std::vector<CEvent*> &activeEvents) {
         activeEvents.push_back(e);
     }
     //如果当前container不足以盛下epoll返回的事件了，则给它扩容
-    if(nRet == m_eventsContainer.size()){
+    int nContainer = m_eventsContainer.size();
+    if(nRet == nContainer){
         m_eventsContainer.resize(nRet*2);
     }
 
@@ -59,7 +60,7 @@ bool CEpoller::epollUpdate(int op, CEvent *event) {
     edata.events = event->getEvents();
     edata.data.ptr = event;
     if(::epoll_ctl(m_epollid, op, event->getFd(), &edata) < 0){
-        LOGE("epoll_ctl failed");
+        LOGE("epoll_ctl op=%d, failed, fd=%d, err=%s", op, event->getFd(), strerror(errno));
         return false;
     }
     return true;

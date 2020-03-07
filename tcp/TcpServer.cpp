@@ -55,8 +55,9 @@ void CTcpServer::onAccept(CEvent* event) {
         LOGE("Accept client connection failed");
         return;
     }
+//    LOGI("Accept connection from %s:%d, fd=%d", chost.c_str(), cport, clientfd);
     //选择一个线程去处理新连接
-    m_ioLoops[m_nextLoop]->addNewClient(clientfd);
+    m_ioLoops[m_nextLoop++]->addNewClient(clientfd);
     if(m_nextLoop>=m_threadCount)
         m_nextLoop = 0;
 }
