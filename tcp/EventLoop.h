@@ -10,6 +10,8 @@
 #include <memory>
 #include <unordered_map>
 #include <thread>
+#include <mutex>
+#include <list>
 
 class CTcpServer;
 class CEventLoop{
@@ -36,12 +38,14 @@ private:
     CTcpServer*     m_tcpServer;
     bool            m_bRunning;
 
-    // pipefd的写端，当需要当前线程执行某项工作时，
-    // 把对应的客户端fd通过这个pipefd传过来，使用这种方式避免了多线程的操作
-    //>0表示新连接fd，-1退出线程
-    int             m_sendTaskFd;
+//    // pipefd的写端，当需要当前线程执行某项工作时，
+//    // 把对应的客户端fd通过这个pipefd传过来，使用这种方式避免了多线程的操作
+//    //>0表示新连接fd，-1退出线程
+//    int             m_sendTaskFd;
     //接收pipeFd发过来的任务的事件
     CEvent*         m_recvTaskEvent;
+    std::mutex      m_mutex;
+    std::list<int>  m_newFds;
 
     CEpoller        m_epoll;
     std::thread     m_thread;

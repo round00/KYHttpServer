@@ -20,23 +20,23 @@ m_tcpServer(serverPtr), m_bRunning(false),m_recvTaskEvent(nullptr){
 
 CEventLoop::~CEventLoop() {
     if(m_recvTaskEvent){
-        ::close(m_sendTaskFd);
         ::close(m_recvTaskEvent->getFd());
         delete m_recvTaskEvent;
     }
 }
 
 bool CEventLoop::start() {
-    int pipefd[2];
-    if(::pipe(pipefd) < 0){
+    int fd = ::eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
+    if(fd < 0){
         LOGE("Create pipe fd failed");
         return false;
     }
     //1是写端
-    m_sendTaskFd = pipefd[1];
+//    m_sendTaskFd = pipefd[1];
     //0是读端,设置为非阻塞
-    SocketUtil::setNonblock(pipefd[0]);
-    m_recvTaskEvent = new CEvent(pipefd[0], EV_TYPE_READ);
+//    SocketUtil::setNonblock(pipefd[0]);
+    m_newFds.clear();
+    m_recvTaskEvent = new CEvent(fd, EV_TYPE_READ);
     m_recvTaskEvent->setReadCallback(std::bind(
             &CEventLoop::onNewConnection, this, std::placeholders::_1));
     addEvent(m_recvTaskEvent);
@@ -45,8 +45,7 @@ bool CEventLoop::start() {
 }
 
 void CEventLoop::quit() {
-    int quitFd = -1;
-    ::write(m_sendTaskFd, &quitFd, sizeof(quitFd));
+    m_bRunning = false;
 }
 
 void CEventLoop::loop() {
@@ -78,9 +77,13 @@ void CEventLoop::dispatchEvent(CEvent *event) {
 }
 
 bool CEventLoop::addNewClient(int fd) {
-    LOGI("Eventloop %d, Accept connection fd=%d", m_sendTaskFd, fd);
-    if(::write(m_sendTaskFd, &fd, sizeof(fd)) < 0){
-        std::string err = strerror(errno);
+    LOGI("Eventloop %d, Accept connection fd=%d", m_recvTaskEvent->getFd(), fd);
+    {
+        std::unique_lock<std::mutex> lock(m_mutex);
+        m_newFds.push_back(fd);
+    }
+    uint64_t wakeup = 1;
+    if(::write(m_recvTaskEvent->getFd(), &wakeup, sizeof(wakeup)) < 0){
         LOGE("addNewConnection failed");
         return false;
     }
@@ -100,24 +103,32 @@ bool CEventLoop::delEvent(CEvent *event) {
 }
 
 void CEventLoop::onNewConnection(CEvent *event) {
-    int clientfd;
-    ::read(event->getFd(), &clientfd, sizeof clientfd);
-    if(clientfd==-1){
+    int64_t one;
+    ::read(event->getFd(), &one, sizeof one);
+    if(one==-1){
         //-1表示退出
         m_bRunning = false;
         return;
     }
-
-    //创建新的连接
-    TcpConnPtr conn(new CTcpConnection(this, clientfd));
-    conn->setCloseCallback(std::bind(
-            &CEventLoop::onRemoveConnection, this, std::placeholders::_1));
-
-    m_connections[clientfd] = conn;
-    if(m_tcpServer->getConnectionCb()){
-        m_tcpServer->getConnectionCb()(conn);
+    std::list<int> fds;
+    {
+        std::unique_lock<std::mutex> lock(m_mutex);
+        m_newFds.swap(fds);
     }
-    LOGI("EventLoop %d create new tcp connection, fd=%d",event->getFd(), clientfd);
+
+    for(auto clientfd : fds){
+        //创建新的连接
+        TcpConnPtr conn(new CTcpConnection(this, clientfd));
+        conn->setCloseCallback(std::bind(
+                &CEventLoop::onRemoveConnection, this, std::placeholders::_1));
+
+        m_connections[clientfd] = conn;
+        if(m_tcpServer->getConnectionCb()){
+            m_tcpServer->getConnectionCb()(conn);
+        }
+
+        LOGI("EventLoop %d create new tcp connection, fd=%d",event->getFd(), clientfd);
+    }
 }
 
 void CEventLoop::onRemoveConnection(const TcpConnPtr &conn) {
