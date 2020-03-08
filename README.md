@@ -1,5 +1,5 @@
 # KYHttpServer
-用C++11写的Http服务器，把之前所学的知识串联了起来，加深理解。很多东西都参考了`Libevent`和`muduo`的实现，收益颇多。
+用C++写的Http服务器，把之前所学的知识串联了起来，加深理解。很多东西都参考了`Libevent`和`muduo`的实现，收益颇多。
 
 ## 开发环境
 - 个人电脑：Windows 10
@@ -98,6 +98,9 @@ IO线程创建一个管道，从写端写客户端的`socket fd`，从读端读�
 
 `muduo`：  
 	![muduo3000](imgs/muduo3000.png)
+### 4、5000个并发客户端
+机器能力有限，运行`webbench`创建5000个客户端时就跑不动了。  
+	![muduo3000](imgs/forkerror.png)
 
 ## 测试分析
 下面是对测试结果的统计，以**QPS**`(Queries-per-second)` 为单位：
