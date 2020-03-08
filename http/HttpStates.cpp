@@ -15,14 +15,8 @@ REQUEST_METHOD getMethodByStr(const std::string& str){
         return REQUEST_METHOD_HEAD;
     }else if(equalNocase(str, "PUT")){
         return REQUEST_METHOD_PUT;
-    }else if(equalNocase(str, "DELETE")){
+    }else if(equalNocase(str, "DELETE")) {
         return REQUEST_METHOD_DELETE;
-    }else if(equalNocase(str, "OPTIONS")){
-        return REQUEST_METHOD_OPTIONS;
-    }else if(equalNocase(str, "TRACE")){
-        return REQUEST_METHOD_TRACE;
-    }else if(equalNocase(str, "CONNECT")){
-        return REQUEST_METHOD_CONNECT;
     }
     return REQUEST_METHOD_UNKNOWN;
 }
