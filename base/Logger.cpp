@@ -182,6 +182,7 @@ void CLogger::writeToFile(const std::string &s){
         int nWrite = ::fwrite(s.c_str() + hasWritten, 1, n-hasWritten, m_fLogFile);
         hasWritten += nWrite;
     }
+    ::fflush(m_fLogFile);
 }
 
 bool CLogger::checkGapADay(){
