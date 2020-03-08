@@ -81,29 +81,29 @@ IO线程创建一个管道，从写端写客户端的`socket fd`，从读端读�
 
 ### 1、100个并发客户端
 `KYHttpServer`：  
-	![](imgs/KY100.png)
+	![KY100](imgs/KY100.png)
 
 `muduo`：  
-	![](imgs/muduo100.png)
+	![muduo100](imgs/muduo100.png)
 ### 2、1000个并发客户端
 `KYHttpServer`：  
-	![](imgs/KY1000.png)
+	![KY1000](imgs/KY1000.png)
 
 `muduo`：  
-	![](imgs/muduo1000.png)
+	![muduo1000](imgs/muduo1000.png)
 ### 3、3000个并发客户端
 
 `KYHttpServer`：  
-	![](imgs/KY3000.png)
+	![KY3000](imgs/KY3000.png)
 
 `muduo`：  
-	![](imgs/muduo3000.png)
+	![muduo3000](imgs/muduo3000.png)
 
 ## 测试分析
 下面是对测试结果的统计，以**QPS**`(Queries-per-second)` 为单位：
 
 | 并发量| 100 | 1000 | 3000 |
-| - | :-: | -: | 
+| - | :-: | :-: | :-: |
 | KYHttpServer | 15913| 14911 | 13899 |
 | muduo | 19554 | 20552 | 19170 |
 
